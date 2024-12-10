@@ -10,6 +10,9 @@ BACKEND_URL_SSE = f"{BASE_URL}/api/v1/mcp/sse"
 BACKEND_URL_MSG = f"{BASE_URL}/api/v1/mcp/"
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 def debug(message):
     """Output debug messages to stderr."""
     if DEBUG:
