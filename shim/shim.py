@@ -2,16 +2,25 @@ import os
 import sys
 import asyncio
 import aiohttp
+from datetime import datetime
 
 MCP_HOST = os.getenv("MCP_HOST", "localhost")
 MCP_PORT = os.getenv("MCP_PORT", "3000")
 BASE_URL = f"http://{MCP_HOST}:{MCP_PORT}"
 BACKEND_URL_SSE = f"{BASE_URL}/api/v1/mcp/sse"
 BACKEND_URL_MSG = f"{BASE_URL}/api/v1/mcp/"
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+LOG_FILE = os.getenv("LOG_FILE", "shim.log")
 
 def debug(message):
-    """Output debug messages to stderr."""
-    print(message, file=sys.stderr)
+    """Output debug messages to log file."""
+    if DEBUG:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        try:
+            with open(LOG_FILE, "a") as f:
+                f.write(f"[{timestamp}] {message}\n")
+        except Exception as e:
+            print(f"Error writing to log file: {e}", file=sys.stderr)
 
 async def connect_sse_backend():
     """Establish persistent SSE connection to MCP server."""
@@ -35,7 +44,7 @@ async def connect_sse_backend():
 
 async def process_message(session, message):
     """Forward received message to the MCP server."""
-    debug("-->", message.strip())
+    debug(f"-->{message.strip()}")
     try:
         async with session.post(BACKEND_URL_MSG, data=message, headers={"Content-Type": "application/json"}) as resp:
             if resp.status != 202:
@@ -66,6 +75,9 @@ async def run_bridge():
         debug(f"Fatal error running server: {error}")
         sys.exit(1)
 
-if __name__ == "__main__":
+def app():
     asyncio.run(run_bridge())
+
+if __name__ == "__main__":
+    asyncio.run(app())
 

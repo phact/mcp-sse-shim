@@ -127,6 +127,17 @@ wheels = [
 ]
 
 [[package]]
+name = "mcp-sse-shim"
+version = "0.1.6"
+source = { editable = "." }
+dependencies = [
+    { name = "aiohttp" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "aiohttp", specifier = ">=3.11.10" }]
+
+[[package]]
 name = "multidict"
 version = "6.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -205,17 +216,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/33/d6f5420252a36034bc8a3a01171bc55b4bff5df50d1c63d9caa50693662f/propcache-0.2.1-cp313-cp313-win_amd64.whl", hash = "sha256:556fc6c10989f19a179e4321e5d678db8eb2924131e64652a51fe83e4c3db0e1", size = 43363 },
     { url = "https://files.pythonhosted.org/packages/41/b6/c5319caea262f4821995dca2107483b94a3345d4607ad797c76cb9c36bcc/propcache-0.2.1-py3-none-any.whl", hash = "sha256:52277518d6aae65536e9cea52d4e7fd2f7a66f4aa2d30ed3f2fcea620ace3c54", size = 11818 },
 ]
-
-[[package]]
-name = "sse-shim"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "aiohttp" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "aiohttp", specifier = ">=3.11.10" }]
 
 [[package]]
 name = "yarl"
