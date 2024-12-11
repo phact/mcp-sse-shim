@@ -128,7 +128,7 @@ wheels = [
 
 [[package]]
 name = "mcp-sse-shim"
-version = "0.1.6"
+version = "0.1.14"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
