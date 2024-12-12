@@ -1,6 +1,6 @@
 [project]
 name = "mcp-sse-shim"
-version = "0.1.17"
+version = "0.1.20"
 description = "shim for mcp sse over stdio"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -4,9 +4,8 @@ import asyncio
 import traceback
 import aiohttp
 
-MCP_HOST = os.getenv("MCP_HOST", "localhost")
-MCP_PORT = os.getenv("MCP_PORT", "7860")
-BASE_URL = f"http://{MCP_HOST}:{MCP_PORT}"
+MCP_HOST = os.getenv("MCP_HOST", "http://localhost:7860")
+BASE_URL = f"{MCP_HOST}"
 BACKEND_URL_SSE = f"{BASE_URL}/api/v1/mcp/sse"
 BACKEND_URL_MSG = f"{BASE_URL}/api/v1/mcp/"
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
@@ -28,36 +27,35 @@ async def connect_sse_backend():
     global message_endpoint
     try:
         async with aiohttp.ClientSession() as session:
+            debug(f"SSE: Connecting to {BACKEND_URL_SSE}")
             async with session.get(BACKEND_URL_SSE) as response:
                 if response.status != 200:
-                    raise Exception(f"SSE connection failed with status {response.status}")
+                    raise Exception(f"SSE: Connection failed with status {response.status}")
 
-                debug("--- SSE backend connected")
+                debug("SSE: Connected successfully")
 
                 # Read and process SSE messages
                 async for line in response.content:
                     if line:
                         message = line.decode().strip()
-                        debug(f"<-- {message}")
+                        debug(f"SSE <<< {message}")
                         
                         if message.startswith("event: endpoint"):
                             continue
                         elif message.startswith("data: ") and message_endpoint is None:
                             endpoint = message[6:]
                             message_endpoint = f"{BASE_URL}{endpoint}"
-                            debug(f"Set message endpoint to: {message_endpoint}")
+                            debug(f"SSE: Message endpoint set to: {message_endpoint}")
                             
                             # Process any queued messages
                             if message_queue:
-                                debug(f"Processing {len(message_queue)} queued messages")
+                                debug(f"QUEUE: Processing {len(message_queue)} queued messages")
                                 for queued_message in message_queue:
                                     await process_message(session, queued_message)
                                 message_queue.clear()
                         elif message.startswith("data: "):
-                            # Handle server responses
-                            response_data = message[6:]  # Strip "data: " prefix
-                            debug(f"Server response: {response_data}")
-                            # Write the response to stdout for the client
+                            response_data = message[6:]
+                            debug(f"SSE >>> {response_data}")
                             print(response_data, flush=True)
     except Exception as e:
         debug(f"--- SSE backend disc./error: {str(e)}")
@@ -67,18 +65,18 @@ async def connect_sse_backend():
 async def process_message(session, message):
     """Forward received message to the MCP server."""
     if not message_endpoint:
-        debug(f"No message endpoint set yet, queuing message: {message}")
+        debug(f"QUEUE: Message queued (no endpoint): {message}")
         message_queue.append(message)
         return
         
-    debug(f"--> Sending to {message_endpoint}: {message.strip()}")
+    debug(f"MSG >>> {message.strip()}")
     try:
         async with session.post(message_endpoint, data=message, headers={"Content-Type": "application/json"}) as resp:
-            debug(f"Response status: {resp.status}")
+            debug(f"MSG <<< Status: {resp.status}")
             if resp.status != 202:
-                debug(f"Unexpected response status: {resp.status}")
+                debug(f"MSG <<< Error: Unexpected status {resp.status}")
     except Exception as e:
-        debug(f"fetch error: {e}")
+        debug(f"MSG <<< Error: {e}")
         debug(f"Full exception: {traceback.format_exc()}")
 
 async def run_bridge():
