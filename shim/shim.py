@@ -3,6 +3,7 @@ import sys
 import asyncio
 import traceback
 import aiohttp
+from datetime import datetime
 
 MCP_HOST = os.getenv("MCP_HOST", "http://localhost:7860")
 BASE_URL = f"{MCP_HOST}"
@@ -18,9 +19,10 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 def debug(message):
-    """Output debug messages to stderr."""
+    """Output debug messages to stderr with timestamps."""
     if DEBUG:
-        print(message, file=sys.stderr)
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+        print(f"[{timestamp}] {message}", file=sys.stderr)
 
 async def connect_sse_backend():
     """Establish persistent SSE connection to MCP server."""
