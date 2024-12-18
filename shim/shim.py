@@ -15,6 +15,9 @@ DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 message_queue = []
 message_endpoint = None
 
+# Update the connection logic to derive SSL from URL scheme
+use_ssl = MCP_HOST.lower().startswith("https://")
+
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -28,7 +31,8 @@ async def connect_sse_backend():
     """Establish persistent SSE connection to MCP server."""
     global message_endpoint
     try:
-        async with aiohttp.ClientSession() as session:
+        # Create session with SSL based on URL scheme
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=use_ssl)) as session:
             debug(f"SSE: Connecting to {BACKEND_URL_SSE}")
             async with session.get(BACKEND_URL_SSE) as response:
                 if response.status != 200:
@@ -87,7 +91,8 @@ async def run_bridge():
         # Start the SSE connection in a background task
         asyncio.create_task(connect_sse_backend())
 
-        async with aiohttp.ClientSession() as session:
+        # Use same SSL setting for message processing session
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=use_ssl)) as session:
             debug("-- MCP stdio to SSE gw running")
 
             # Read stdin synchronously using a ThreadPoolExecutor
