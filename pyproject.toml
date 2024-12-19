@@ -1,9 +1,9 @@
 [project]
 name = "mcp-sse-shim"
-version = "0.1.22"
+version = "0.1.27"
 description = "shim for mcp sse over stdio"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.9"
 dependencies = [
     "aiohttp>=3.11.10",
 ]

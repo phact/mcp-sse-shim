@@ -18,6 +18,9 @@ message_endpoint = None
 # Update the connection logic to derive SSL from URL scheme
 use_ssl = MCP_HOST.lower().startswith("https://")
 
+# Create SSL context or None based on URL scheme
+ssl_context = False if not use_ssl else True  # Changed from None to False
+
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -30,39 +33,58 @@ def debug(message):
 async def connect_sse_backend():
     """Establish persistent SSE connection to MCP server."""
     global message_endpoint
+    retry_count = 0
+    max_retries = 3
+    
     try:
-        # Create session with SSL based on URL scheme
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=use_ssl)) as session:
-            debug(f"SSE: Connecting to {BACKEND_URL_SSE}")
-            async with session.get(BACKEND_URL_SSE) as response:
-                if response.status != 200:
-                    raise Exception(f"SSE: Connection failed with status {response.status}")
+        # Create session with explicit SSL context and verify settings are applied
+        connector = aiohttp.TCPConnector(ssl=ssl_context, force_close=True)
+        debug(f"SSE: Creating connector with ssl={ssl_context}, connector={connector}")
+        
+        async with aiohttp.ClientSession(connector=connector, trust_env=False) as session:
+            while retry_count < max_retries:
+                try:
+                    debug(f"SSE: Attempt {retry_count + 1} connecting to {BACKEND_URL_SSE}")
+                    debug(f"SSE: Using connector settings: ssl={ssl_context}, host={MCP_HOST}")
+                    
+                    async with session.get(BACKEND_URL_SSE, ssl=ssl_context) as response:
+                        if response.status != 200:
+                            raise Exception(f"SSE: Connection failed with status {response.status}")
 
-                debug("SSE: Connected successfully")
+                        debug("SSE: Connected successfully")
 
-                # Read and process SSE messages
-                async for line in response.content:
-                    if line:
-                        message = line.decode().strip()
-                        debug(f"SSE <<< {message}")
-                        
-                        if message.startswith("event: endpoint"):
-                            continue
-                        elif message.startswith("data: ") and message_endpoint is None:
-                            endpoint = message[6:]
-                            message_endpoint = f"{BASE_URL}{endpoint}"
-                            debug(f"SSE: Message endpoint set to: {message_endpoint}")
-                            
-                            # Process any queued messages
-                            if message_queue:
-                                debug(f"QUEUE: Processing {len(message_queue)} queued messages")
-                                for queued_message in message_queue:
-                                    await process_message(session, queued_message)
-                                message_queue.clear()
-                        elif message.startswith("data: "):
-                            response_data = message[6:]
-                            debug(f"SSE >>> {response_data}")
-                            print(response_data, flush=True)
+                        # Read and process SSE messages
+                        async for line in response.content:
+                            if line:
+                                message = line.decode().strip()
+                                debug(f"SSE <<< {message}")
+                                
+                                if message.startswith("event: endpoint"):
+                                    continue
+                                elif message.startswith("data: ") and message_endpoint is None:
+                                    endpoint = message[6:]
+                                    message_endpoint = f"{BASE_URL}{endpoint}"
+                                    debug(f"SSE: Message endpoint set to: {message_endpoint}")
+                                    
+                                    # Process any queued messages
+                                    if message_queue:
+                                        debug(f"QUEUE: Processing {len(message_queue)} queued messages")
+                                        for queued_message in message_queue:
+                                            await process_message(session, queued_message)
+                                        message_queue.clear()
+                                elif message.startswith("data: "):
+                                    response_data = message[6:]
+                                    debug(f"SSE >>> {response_data}")
+                                    print(response_data, flush=True)
+                    break
+                except Exception as e:
+                    retry_count += 1
+                    debug(f"SSE: Connection attempt {retry_count} failed: {str(e)}")
+                    if retry_count < max_retries:
+                        debug(f"SSE: Retrying in 5 seconds...")
+                        await asyncio.sleep(5)
+                    else:
+                        raise
     except Exception as e:
         debug(f"--- SSE backend disc./error: {str(e)}")
         raise
